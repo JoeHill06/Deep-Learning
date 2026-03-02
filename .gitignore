@@ -22,6 +22,9 @@ env/
 *.npz
 data/
 
+# Book PDFs (copyright — keep local only)
+*.pdf
+
 # OS
 .DS_Store
 Thumbs.db
