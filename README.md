@@ -40,6 +40,27 @@ A two-layer network trained on the MNIST dataset (1000 training images) that cla
 
 ---
 
+## Chapter Notes
+
+Each chapter folder contains a README that teaches the concepts from scratch, plus working Python examples.
+
+| Chapter | Topic | Code |
+|---|---|---|
+| [Chapter 1](chapter1/README.md) | Introducing Deep Learning | — |
+| [Chapter 2](chapter2/README.md) | How Do Machines Learn? | — |
+| [Chapter 3](chapter3/README.md) | Forward Propagation | [`forward_propagation.py`](chapter3/forward_propagation.py) |
+| [Chapter 4](chapter4/README.md) | Gradient Descent | [`gradient_descent.py`](chapter4/gradient_descent.py) |
+| [Chapter 5](chapter5/README.md) | Multiple Weights | [`gradient_descent_multi.py`](chapter5/gradient_descent_multi.py) |
+| [Chapter 6](chapter6/README.md) | Backpropagation | [`backpropagation.py`](chapter6/backpropagation.py) |
+| [Chapter 7](chapter7/README.md) | Visualising Networks | — |
+| [Chapter 8](chapter8/README.md) | Regularization & Batching | [`regularization.py`](chapter8/regularization.py) |
+| [Chapter 9](chapter9/README.md) | Activation Functions | [`activation_functions.py`](chapter9/activation_functions.py) |
+| [Chapter 10](chapter10/README.md) | Convolutional Neural Networks | [`cnn.py`](chapter10/cnn.py) |
+| [Chapter 11](chapter11/README.md) | Word Embeddings & NLP | [`word_embeddings.py`](chapter11/word_embeddings.py) |
+| [Chapter 12](chapter12/README.md) | Recurrent Neural Networks | [`rnn.py`](chapter12/rnn.py) |
+
+---
+
 ## Concepts Covered (from Grokking Deep Learning)
 
 | Concept | Where used |
