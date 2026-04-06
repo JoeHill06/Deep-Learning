@@ -4,6 +4,8 @@
   "techniques": "Dropout regularisation · Gradient descent · Tanh + Softmax activations · One-hot encoding · MSE loss",
   "results": "97.7% test accuracy on 10,000 unseen images after 20 training iterations (60,000 training images, alpha=0.01, 80% dropout keep rate). Train/test gap of only ~0.3%, indicating the network generalises well rather than memorising the training data.",
   "weights": "networks/grokking-mnist/weights.json",
+  "notes": "networks/grokking-mnist/notes.md",
+  "notebook": "networks/grokking-mnist/notebook.html",
   "input_size": 784,
   "hidden_size": 100,
   "output_size": 10

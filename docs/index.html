@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MNIST Digit Classifier</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- marked.js for rendering markdown notes -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
@@ -24,6 +26,7 @@
       <span id="load-status" class="load-status"></span>
     </div>
 
+    <!-- Draw + info -->
     <div class="content">
 
       <!-- Left: canvas -->
@@ -60,6 +63,24 @@
 
       </div>
     </div>
+
+    <!-- Notes section -->
+    <div class="full-width-section">
+      <div class="card">
+        <h2>Notes</h2>
+        <div id="notes-content" class="markdown-body">Loading notes…</div>
+      </div>
+    </div>
+
+    <!-- Notebook section -->
+    <div class="full-width-section">
+      <div class="card">
+        <h2>Notebook</h2>
+        <p class="notebook-hint">The Jupyter notebook this network was built with.</p>
+        <iframe id="notebook-frame" src="" frameborder="0"></iframe>
+      </div>
+    </div>
+
   </main>
 
   <script src="script.js"></script>

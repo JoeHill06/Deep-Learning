@@ -1,5 +1,5 @@
 // ── Network registry ───────────────────────────────────────────────────────
-// Add more networks here as objects with their info.json path
+// Add more networks here — key matches the dropdown option value
 const NETWORKS = {
   'grokking-mnist': 'networks/grokking-mnist/info.json'
 };
@@ -10,14 +10,16 @@ let isDrawing = false;
 let lastX = 0, lastY = 0;
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
-const canvas     = document.getElementById('draw-canvas');
-const ctx        = canvas.getContext('2d');
-const clearBtn   = document.getElementById('clear-btn');
-const guessBtn   = document.getElementById('guess-btn');
-const netSelect  = document.getElementById('network-select');
-const loadStatus = document.getElementById('load-status');
-const barChart   = document.getElementById('bar-chart');
-const predDisplay = document.getElementById('prediction-display');
+const canvas        = document.getElementById('draw-canvas');
+const ctx           = canvas.getContext('2d');
+const clearBtn      = document.getElementById('clear-btn');
+const guessBtn      = document.getElementById('guess-btn');
+const netSelect     = document.getElementById('network-select');
+const loadStatus    = document.getElementById('load-status');
+const barChart      = document.getElementById('bar-chart');
+const predDisplay   = document.getElementById('prediction-display');
+const notesContent  = document.getElementById('notes-content');
+const notebookFrame = document.getElementById('notebook-frame');
 
 // ── Canvas setup ───────────────────────────────────────────────────────────
 ctx.fillStyle = '#000';
@@ -28,10 +30,10 @@ ctx.lineJoin    = 'round';
 ctx.strokeStyle = '#fff';
 
 function getPos(e) {
-  const rect = canvas.getBoundingClientRect();
+  const rect   = canvas.getBoundingClientRect();
   const scaleX = canvas.width  / rect.width;
   const scaleY = canvas.height / rect.height;
-  const src = e.touches ? e.touches[0] : e;
+  const src    = e.touches ? e.touches[0] : e;
   return {
     x: (src.clientX - rect.left) * scaleX,
     y: (src.clientY - rect.top)  * scaleY
@@ -68,22 +70,42 @@ async function loadNetwork(key) {
   loadStatus.textContent = 'Loading…';
   guessBtn.disabled = true;
   currentWeights = null;
+  notesContent.textContent = 'Loading notes…';
+  notebookFrame.src = '';
 
   try {
-    // Load info
+    // Load info.json
     const infoRes = await fetch(NETWORKS[key]);
     const info    = await infoRes.json();
 
+    // Populate structured info
     document.getElementById('info-arch').textContent    = info.architecture;
     document.getElementById('info-tech').textContent    = info.techniques;
     document.getElementById('info-results').textContent = info.results;
 
     // Load weights
-    const wRes    = await fetch(info.weights);
+    const wRes     = await fetch(info.weights);
     currentWeights = await wRes.json();
+
+    // Load and render notes markdown
+    if (info.notes) {
+      const nRes  = await fetch(info.notes);
+      const mdText = await nRes.text();
+      notesContent.innerHTML = marked.parse(mdText);
+    } else {
+      notesContent.textContent = 'No notes for this network yet.';
+    }
+
+    // Set notebook iframe
+    if (info.notebook) {
+      notebookFrame.src = info.notebook;
+    } else {
+      notebookFrame.style.display = 'none';
+    }
 
     loadStatus.textContent = 'Ready';
     guessBtn.disabled = false;
+
   } catch (err) {
     loadStatus.textContent = 'Failed to load';
     console.error(err);
@@ -91,16 +113,14 @@ async function loadNetwork(key) {
 }
 
 netSelect.addEventListener('change', () => loadNetwork(netSelect.value));
-
-// Load default network on page load
 loadNetwork(netSelect.value);
 
-// ── Forward pass (NumPy-equivalent in JS) ─────────────────────────────────
+// ── Forward pass ───────────────────────────────────────────────────────────
 
-// Vector × matrix: vec[n] @ mat[n][m] → result[m]
+// vec[n] @ mat[n][m] → result[m]
 function dotVecMat(vec, mat) {
-  const n = vec.length;
-  const m = mat[0].length;
+  const n   = vec.length;
+  const m   = mat[0].length;
   const out = new Float64Array(m);
   for (let j = 0; j < m; j++) {
     let s = 0;
@@ -111,18 +131,18 @@ function dotVecMat(vec, mat) {
 }
 
 function tanh(vec) {
-  return vec.map(v => Math.tanh(v));
+  return Array.from(vec).map(v => Math.tanh(v));
 }
 
 function softmax(vec) {
-  const max = Math.max(...vec);
-  const exp = vec.map(v => Math.exp(v - max));
-  const sum = exp.reduce((a, b) => a + b, 0);
+  const arr = Array.from(vec);
+  const max  = Math.max(...arr);
+  const exp  = arr.map(v => Math.exp(v - max));
+  const sum  = exp.reduce((a, b) => a + b, 0);
   return exp.map(v => v / sum);
 }
 
 function predict(pixels) {
-  // pixels: flat Float32Array of 784 values, normalised 0–1
   const layer_1 = tanh(dotVecMat(pixels, currentWeights.weights_0_1));
   const layer_2 = softmax(dotVecMat(layer_1, currentWeights.weights_1_2));
   return layer_2;
@@ -130,18 +150,15 @@ function predict(pixels) {
 
 // ── Image preprocessing ────────────────────────────────────────────────────
 function getPixels() {
-  // Shrink the 280×280 canvas down to 28×28
+  // Shrink 280×280 canvas to 28×28
   const small = document.createElement('canvas');
   small.width = small.height = 28;
-  const sCtx  = small.getContext('2d');
-  sCtx.drawImage(canvas, 0, 0, 28, 28);
-  const imgData = sCtx.getImageData(0, 0, 28, 28).data; // RGBA
+  small.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
+  const imgData = small.getContext('2d').getImageData(0, 0, 28, 28).data;
 
-  // Use the red channel (canvas is grayscale so R=G=B) and normalise to 0–1
+  // Red channel (grayscale), normalised 0–1
   const pixels = new Float32Array(784);
-  for (let i = 0; i < 784; i++) {
-    pixels[i] = imgData[i * 4] / 255.0;
-  }
+  for (let i = 0; i < 784; i++) pixels[i] = imgData[i * 4] / 255.0;
   return pixels;
 }
 
@@ -154,23 +171,19 @@ guessBtn.addEventListener('click', () => {
   const pred   = probs.indexOf(Math.max(...probs));
   const conf   = (probs[pred] * 100).toFixed(1);
 
-  // Show prediction
   predDisplay.innerHTML = `
     <div class="prediction-number">${pred}</div>
     <div class="prediction-conf">${conf}% confidence</div>
   `;
 
-  // Show bar chart
   barChart.innerHTML = '';
-  const sorted = [...probs].sort((a, b) => b - a);
-  const topVal = sorted[0];
+  const topVal = Math.max(...probs);
 
   probs.forEach((p, digit) => {
-    const pct  = (p * 100).toFixed(1);
-    const w    = (p / topVal * 100).toFixed(1);
+    const pct   = (p * 100).toFixed(1);
+    const w     = (p / topVal * 100).toFixed(1);
     const isTop = digit === pred;
-
-    const row = document.createElement('div');
+    const row   = document.createElement('div');
     row.className = 'bar-row';
     row.innerHTML = `
       <span class="bar-digit">${digit}</span>

@@ -63,9 +63,16 @@ header .subtitle {
   display: flex;
   gap: 1.5rem;
   max-width: 900px;
-  margin: 1.5rem auto 2rem;
+  margin: 1.5rem auto 0;
   padding: 0 1rem;
   align-items: flex-start;
+}
+
+/* Full-width sections below the draw area */
+.full-width-section {
+  max-width: 900px;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem;
 }
 
 /* Left panel */
@@ -247,6 +254,91 @@ button:active {
   text-align: right;
   color: #888;
   flex-shrink: 0;
+}
+
+/* Markdown notes */
+.markdown-body {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: #c8c8e0;
+}
+
+.markdown-body h1 {
+  font-size: 1.2rem;
+  color: #a78bfa;
+  margin-bottom: 0.6rem;
+}
+
+.markdown-body h2 {
+  font-size: 1rem;
+  color: #a78bfa;
+  margin: 1.2rem 0 0.5rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.markdown-body h3 {
+  font-size: 0.95rem;
+  color: #c4b5fd;
+  margin: 1rem 0 0.4rem;
+}
+
+.markdown-body p {
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body ul, .markdown-body ol {
+  padding-left: 1.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-body code {
+  background: #2d2d45;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-size: 0.85em;
+  color: #c4b5fd;
+}
+
+.markdown-body pre {
+  background: #2d2d45;
+  padding: 0.8rem 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-body em {
+  color: #c4b5fd;
+}
+
+/* Notebook iframe */
+.notebook-hint {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+}
+
+#notebook-frame {
+  width: 100%;
+  height: 800px;
+  border-radius: 6px;
+  border: 1px solid #2d2d45;
+  background: #fff;
+}
+
+/* Bottom padding */
+main {
+  padding-bottom: 3rem;
 }
 
 /* Responsive */
