@@ -1,5 +1,4 @@
 // ── Network registry ───────────────────────────────────────────────────────
-// Add more networks here — key matches the dropdown option value
 const NETWORKS = {
   'grokking-mnist': 'networks/grokking-mnist/info.json'
 };
@@ -10,16 +9,16 @@ let isDrawing = false;
 let lastX = 0, lastY = 0;
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
-const canvas        = document.getElementById('draw-canvas');
-const ctx           = canvas.getContext('2d');
-const clearBtn      = document.getElementById('clear-btn');
-const guessBtn      = document.getElementById('guess-btn');
-const netSelect     = document.getElementById('network-select');
-const loadStatus    = document.getElementById('load-status');
-const barChart      = document.getElementById('bar-chart');
-const predDisplay   = document.getElementById('prediction-display');
-const notesContent  = document.getElementById('notes-content');
-const notebookFrame = document.getElementById('notebook-frame');
+const canvas         = document.getElementById('draw-canvas');
+const ctx            = canvas.getContext('2d');
+const clearBtn       = document.getElementById('clear-btn');
+const guessBtn       = document.getElementById('guess-btn');
+const netSelect      = document.getElementById('network-select');
+const loadStatus     = document.getElementById('load-status');
+const barChart       = document.getElementById('bar-chart');
+const predDisplay    = document.getElementById('prediction-display');
+const notesContent   = document.getElementById('notes-content');
+const notebookRender = document.getElementById('notebook-render');
 
 // ── Canvas setup ───────────────────────────────────────────────────────────
 ctx.fillStyle = '#000';
@@ -65,20 +64,74 @@ clearBtn.addEventListener('click', () => {
   barChart.innerHTML = '';
 });
 
+// ── Notebook renderer ──────────────────────────────────────────────────────
+// Parses the raw .ipynb JSON and renders markdown + code + outputs directly
+// in the page — no iframe or external Jupyter dependencies needed.
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderNotebook(nb) {
+  const cells = nb.cells || [];
+  let html = '';
+
+  cells.forEach(cell => {
+    const src = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+
+    if (cell.cell_type === 'markdown') {
+      html += `<div class="nb-markdown">${marked.parse(src)}</div>`;
+
+    } else if (cell.cell_type === 'code') {
+      html += `<div class="nb-cell">`;
+      if (src.trim()) {
+        html += `<pre class="nb-code"><code>${escapeHtml(src)}</code></pre>`;
+      }
+
+      // Render outputs
+      const outputs = cell.outputs || [];
+      outputs.forEach(out => {
+        if (out.output_type === 'stream') {
+          const text = Array.isArray(out.text) ? out.text.join('') : out.text;
+          html += `<pre class="nb-output">${escapeHtml(text)}</pre>`;
+
+        } else if (out.output_type === 'display_data' || out.output_type === 'execute_result') {
+          const data = out.data || {};
+          if (data['image/png']) {
+            html += `<div class="nb-image"><img src="data:image/png;base64,${data['image/png']}" /></div>`;
+          } else if (data['text/plain']) {
+            const text = Array.isArray(data['text/plain']) ? data['text/plain'].join('') : data['text/plain'];
+            html += `<pre class="nb-output">${escapeHtml(text)}</pre>`;
+          }
+
+        } else if (out.output_type === 'error') {
+          const msg = (out.traceback || []).join('\n').replace(/\x1b\[[0-9;]*m/g, ''); // strip ANSI
+          html += `<pre class="nb-error">${escapeHtml(msg)}</pre>`;
+        }
+      });
+
+      html += `</div>`;
+    }
+  });
+
+  return html;
+}
+
 // ── Network loading ────────────────────────────────────────────────────────
 async function loadNetwork(key) {
   loadStatus.textContent = 'Loading…';
   guessBtn.disabled = true;
   currentWeights = null;
   notesContent.textContent = 'Loading notes…';
-  notebookFrame.src = '';
+  notebookRender.innerHTML = '<p class="notebook-hint">Loading notebook…</p>';
 
   try {
-    // Load info.json
     const infoRes = await fetch(NETWORKS[key]);
     const info    = await infoRes.json();
 
-    // Populate structured info
     document.getElementById('info-arch').textContent    = info.architecture;
     document.getElementById('info-tech').textContent    = info.techniques;
     document.getElementById('info-results').textContent = info.results;
@@ -89,18 +142,20 @@ async function loadNetwork(key) {
 
     // Load and render notes markdown
     if (info.notes) {
-      const nRes  = await fetch(info.notes);
+      const nRes   = await fetch(info.notes);
       const mdText = await nRes.text();
       notesContent.innerHTML = marked.parse(mdText);
     } else {
       notesContent.textContent = 'No notes for this network yet.';
     }
 
-    // Set notebook iframe
+    // Load and render notebook JSON
     if (info.notebook) {
-      notebookFrame.src = info.notebook;
+      const nbRes = await fetch(info.notebook);
+      const nb    = await nbRes.json();
+      notebookRender.innerHTML = renderNotebook(nb);
     } else {
-      notebookFrame.style.display = 'none';
+      notebookRender.innerHTML = '<p class="notebook-hint">No notebook attached.</p>';
     }
 
     loadStatus.textContent = 'Ready';
@@ -117,7 +172,6 @@ loadNetwork(netSelect.value);
 
 // ── Forward pass ───────────────────────────────────────────────────────────
 
-// vec[n] @ mat[n][m] → result[m]
 function dotVecMat(vec, mat) {
   const n   = vec.length;
   const m   = mat[0].length;
@@ -150,14 +204,11 @@ function predict(pixels) {
 
 // ── Image preprocessing ────────────────────────────────────────────────────
 function getPixels() {
-  // Shrink 280×280 canvas to 28×28
   const small = document.createElement('canvas');
   small.width = small.height = 28;
   small.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
   const imgData = small.getContext('2d').getImageData(0, 0, 28, 28).data;
-
-  // Red channel (grayscale), normalised 0–1
-  const pixels = new Float32Array(784);
+  const pixels  = new Float32Array(784);
   for (let i = 0; i < 784; i++) pixels[i] = imgData[i * 4] / 255.0;
   return pixels;
 }
