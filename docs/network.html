@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+</head>
+<body>
+
+  <div class="page-header">
+    <a href="index.html">&larr; All networks</a>
+  </div>
+
+  <div class="network-page-body">
+
+    <!-- Network heading -->
+    <div class="network-meta" id="network-meta">
+      <h1 id="net-name">Loading…</h1>
+      <div class="arch" id="net-arch"></div>
+      <div class="result-summary" id="net-results"></div>
+    </div>
+
+    <!-- Try it -->
+    <div class="try-it-section" id="try-it-section" style="display:none">
+      <h2>Try it</h2>
+      <div class="try-it-layout">
+        <div class="try-it-left">
+          <div class="canvas-wrapper">
+            <canvas id="draw-canvas" width="280" height="280"></canvas>
+          </div>
+          <div class="canvas-buttons">
+            <button id="clear-btn">Clear</button>
+            <button id="guess-btn" class="btn-primary" disabled>Guess</button>
+          </div>
+          <div class="canvas-hint">Draw a digit in the centre of the box</div>
+        </div>
+        <div class="try-it-right">
+          <div class="prediction-display" id="prediction-display">
+            <span class="prediction-label">Draw something and press Guess</span>
+          </div>
+          <div id="bar-chart"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes-section" id="notes-section" style="display:none">
+      <h2>Notes</h2>
+      <div class="notes-body" id="notes-content"></div>
+    </div>
+
+    <!-- Notebook -->
+    <div class="nb-container" id="nb-container" style="display:none">
+      <div class="nb-top-bar">
+        <span class="nb-title" id="nb-title">Notebook</span>
+        <div class="nb-top-bar-right">
+          <span class="nb-kernel-indicator">
+            <span class="nb-kernel-dot" id="kernel-dot"></span>
+            <span id="kernel-label">Python (not started)</span>
+          </span>
+          <button class="nb-toolbar-btn" id="run-all-btn" title="Run all cells">&#9654;&#9654; Run All</button>
+          <button class="nb-toolbar-btn" id="restart-btn" title="Restart kernel">&#8635; Restart</button>
+        </div>
+      </div>
+      <div id="notebook-render"></div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

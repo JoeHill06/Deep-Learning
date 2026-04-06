@@ -1,12 +1,19 @@
 {
   "name": "Grokking-MNIST",
-  "architecture": "784 inputs → tanh hidden layer (100 neurons) → dropout → softmax → 10 classes",
-  "techniques": "Dropout regularisation · Gradient descent · Tanh + Softmax activations · One-hot encoding · MSE loss",
-  "results": "97.7% test accuracy on 10,000 unseen images after 20 training iterations (60,000 training images, alpha=0.01, 80% dropout keep rate). Train/test gap of only ~0.3%, indicating the network generalises well rather than memorising the training data.",
+  "description": "A fully connected network built from scratch using only NumPy while working through Grokking Deep Learning by Andrew Trask.",
+  "architecture": "784 → 100 (tanh) → 10 (softmax)",
+  "techniques": ["Dropout regularisation", "Gradient descent", "Tanh + Softmax activations", "One-hot encoding", "MSE loss"],
+  "results": {
+    "test_accuracy": "97.7%",
+    "summary": "97.7% test accuracy on 10,000 unseen images after 20 training iterations. Train/test gap of only ~0.3%."
+  },
+  "layers": [
+    { "weights": "weights_0_1", "bias": null, "activation": "tanh" },
+    { "weights": "weights_1_2", "bias": null, "activation": "softmax" }
+  ],
   "weights": "networks/grokking-mnist/weights.json",
-  "notes": "networks/grokking-mnist/notes.md",
   "notebook": "networks/grokking-mnist/notebook.ipynb",
+  "notes": "networks/grokking-mnist/notes.md",
   "input_size": 784,
-  "hidden_size": 100,
-  "output_size": 10
+  "input_type": "mnist"
 }

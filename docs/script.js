@@ -1,65 +1,189 @@
-// ── Network registry ───────────────────────────────────────────────────────
-const NETWORKS = {
-  'grokking-mnist': 'networks/grokking-mnist/info.json'
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+(async function () {
+  const params = new URLSearchParams(window.location.search);
+  const networkId = params.get('id');
+  if (!networkId) return;  // landing page — nothing to do
+
+  // Fetch network info
+  const registry = await (await fetch('networks/registry.json')).json();
+  const entry = registry.find(e => e.id === networkId);
+  if (!entry) {
+    document.getElementById('net-name').textContent = 'Network not found';
+    return;
+  }
+  const info = await (await fetch(entry.path)).json();
+
+  // Page title
+  document.title = info.name;
+
+  // Header meta
+  document.getElementById('net-name').textContent = info.name;
+  document.getElementById('net-arch').textContent = info.architecture;
+  document.getElementById('net-results').textContent = info.results.summary || '';
+
+  // Load weights + set up try-it widget (only for mnist-type inputs for now)
+  if (info.input_type === 'mnist') {
+    const weights = await (await fetch(info.weights)).json();
+    initTryIt(info, weights);
+  }
+
+  // Load notes
+  if (info.notes) {
+    try {
+      const md = await (await fetch(info.notes)).text();
+      document.getElementById('notes-content').innerHTML = marked.parse(md);
+      document.getElementById('notes-section').style.display = '';
+    } catch (_) {}
+  }
+
+  // Load notebook
+  if (info.notebook) {
+    try {
+      const nb = await (await fetch(info.notebook)).json();
+      renderNotebook(nb, info.name);
+      document.getElementById('nb-container').style.display = '';
+    } catch (e) {
+      console.error('Failed to load notebook:', e);
+    }
+  }
+})();
+
+// ── Try-it: Canvas + Prediction ───────────────────────────────────────────
+function initTryIt(info, weights) {
+  const section = document.getElementById('try-it-section');
+  section.style.display = '';
+
+  const canvas = document.getElementById('draw-canvas');
+  const ctx = canvas.getContext('2d');
+  const clearBtn = document.getElementById('clear-btn');
+  const guessBtn = document.getElementById('guess-btn');
+  const predDisplay = document.getElementById('prediction-display');
+  const barChart = document.getElementById('bar-chart');
+
+  // Canvas setup
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.lineWidth = 18;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#fff';
+
+  let isDrawing = false, lastX = 0, lastY = 0;
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return {
+      x: (src.clientX - rect.left) * (canvas.width / rect.width),
+      y: (src.clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }
+
+  canvas.addEventListener('mousedown', e => { isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
+  canvas.addEventListener('mousemove', e => { if (!isDrawing) return; const p = getPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; });
+  canvas.addEventListener('mouseup', () => { isDrawing = false; ctx.beginPath(); });
+  canvas.addEventListener('mouseleave', () => { isDrawing = false; ctx.beginPath(); });
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!isDrawing) return; const p = getPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; });
+  canvas.addEventListener('touchend', () => { isDrawing = false; ctx.beginPath(); });
+
+  clearBtn.addEventListener('click', () => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    predDisplay.innerHTML = '<span class="prediction-label">Draw something and press Guess</span>';
+    barChart.innerHTML = '';
+  });
+
+  guessBtn.disabled = false;
+  guessBtn.addEventListener('click', () => {
+    const pixels = getPixels(canvas);
+    const probs = forwardPass(pixels, weights, info.layers);
+    const pred = probs.indexOf(Math.max(...probs));
+
+    predDisplay.innerHTML =
+      `<div class="prediction-number">${pred}</div>` +
+      `<div class="prediction-conf">${(probs[pred] * 100).toFixed(1)}% confidence</div>`;
+
+    barChart.innerHTML = '';
+    const top = Math.max(...probs);
+    probs.forEach((p, d) => {
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML =
+        `<span class="bar-digit">${d}</span>` +
+        `<div class="bar-track"><div class="bar-fill ${d === pred ? 'top' : ''}" style="width:${(p / top * 100).toFixed(1)}%"></div></div>` +
+        `<span class="bar-pct">${(p * 100).toFixed(1)}%</span>`;
+      barChart.appendChild(row);
+    });
+  });
+}
+
+// ── Generic forward pass ──────────────────────────────────────────────────
+const activations = {
+  tanh: v => v.map(x => Math.tanh(x)),
+  sigmoid: v => v.map(x => 1 / (1 + Math.exp(-x))),
+  relu: v => v.map(x => Math.max(0, x)),
+  softmax: v => {
+    const mx = Math.max(...v);
+    const e = v.map(x => Math.exp(x - mx));
+    const s = e.reduce((a, b) => a + b, 0);
+    return e.map(x => x / s);
+  },
+  linear: v => v
 };
 
-// ── State ──────────────────────────────────────────────────────────────────
-let currentWeights = null;
-let isDrawing = false;
-let lastX = 0, lastY = 0;
-
-// ── DOM refs ───────────────────────────────────────────────────────────────
-const canvas         = document.getElementById('draw-canvas');
-const ctx            = canvas.getContext('2d');
-const clearBtn       = document.getElementById('clear-btn');
-const guessBtn       = document.getElementById('guess-btn');
-const netSelect      = document.getElementById('network-select');
-const loadStatus     = document.getElementById('load-status');
-const barChart       = document.getElementById('bar-chart');
-const predDisplay    = document.getElementById('prediction-display');
-const notesContent   = document.getElementById('notes-content');
-const notebookRender = document.getElementById('notebook-render');
-
-// ── Canvas drawing ─────────────────────────────────────────────────────────
-ctx.fillStyle = '#000';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-ctx.lineWidth = 18; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#fff';
-
-function getPos(e) {
-  const rect = canvas.getBoundingClientRect();
-  const src  = e.touches ? e.touches[0] : e;
-  return {
-    x: (src.clientX - rect.left) * (canvas.width  / rect.width),
-    y: (src.clientY - rect.top)  * (canvas.height / rect.height)
-  };
+function dotVecMat(vec, mat) {
+  const m = mat[0].length;
+  const out = new Float64Array(m);
+  for (let j = 0; j < m; j++) {
+    let s = 0;
+    for (let i = 0; i < vec.length; i++) s += vec[i] * mat[i][j];
+    out[j] = s;
+  }
+  return Array.from(out);
 }
-canvas.addEventListener('mousedown',  e => { isDrawing = true;  const p = getPos(e); lastX = p.x; lastY = p.y; });
-canvas.addEventListener('mousemove',  e => { if (!isDrawing) return; const p = getPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; });
-canvas.addEventListener('mouseup',    () => { isDrawing = false; ctx.beginPath(); });
-canvas.addEventListener('mouseleave', () => { isDrawing = false; ctx.beginPath(); });
-canvas.addEventListener('touchstart', e => { e.preventDefault(); isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
-canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!isDrawing) return; const p = getPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; });
-canvas.addEventListener('touchend',   () => { isDrawing = false; ctx.beginPath(); });
 
-clearBtn.addEventListener('click', () => {
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  predDisplay.innerHTML = '<span class="prediction-label">Draw something and press Guess</span>';
-  barChart.innerHTML = '';
-});
+function addBias(vec, bias) {
+  return vec.map((v, i) => v + bias[i]);
+}
 
-// ── Pyodide ────────────────────────────────────────────────────────────────
-let pyodide       = null;
-let pyodideReady  = false;
+function forwardPass(input, weights, layers) {
+  let current = Array.from(input);
+  for (const layer of layers) {
+    current = dotVecMat(current, weights[layer.weights]);
+    if (layer.bias && weights[layer.bias]) {
+      current = addBias(current, weights[layer.bias]);
+    }
+    const act = activations[layer.activation] || activations.linear;
+    current = act(current);
+  }
+  return current;
+}
+
+// ── Get 28x28 pixels from canvas ──────────────────────────────────────────
+function getPixels(canvas) {
+  const s = document.createElement('canvas');
+  s.width = s.height = 28;
+  s.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
+  const d = s.getContext('2d').getImageData(0, 0, 28, 28).data;
+  const p = new Float32Array(784);
+  for (let i = 0; i < 784; i++) p[i] = d[i * 4] / 255;
+  return p;
+}
+
+// ── Pyodide kernel ────────────────────────────────────────────────────────
+let pyodide = null;
+let pyodideReady = false;
 let pyodideBooting = false;
-let runCounter    = 0;
-
-const kernelDot   = document.getElementById('kernel-dot');
-const kernelLabel = document.getElementById('kernel-label');
+let runCounter = 0;
 
 function setKernelStatus(status) {
-  kernelDot.className = 'nb-kernel-dot ' + status;
+  const dot = document.getElementById('kernel-dot');
+  const label = document.getElementById('kernel-label');
+  if (!dot || !label) return;
+  dot.className = 'nb-kernel-dot ' + status;
   const labels = { idle: 'Python (idle)', busy: 'Python (busy)', error: 'Python (error)', loading: 'Python (loading…)' };
-  kernelLabel.textContent = labels[status] || status;
+  label.textContent = labels[status] || status;
 }
 
 async function bootPyodide() {
@@ -69,12 +193,11 @@ async function bootPyodide() {
   try {
     pyodide = await loadPyodide();
     await pyodide.loadPackage(['numpy', 'matplotlib']);
-    // Set up matplotlib to capture plt.show() as base64 PNG printed to stdout
     await pyodide.runPythonAsync(`
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import io, base64, sys
+import io, base64
 
 def _show_capture():
     buf = io.BytesIO()
@@ -106,7 +229,6 @@ async function runCellCode(code, outputContent, promptEl) {
   outputContent.innerHTML = '<div class="nb-running-text">Running…</div>';
   setKernelStatus('busy');
 
-  // Redirect stdout/stderr
   pyodide.runPython(`
 import sys, io as _io
 _buf = _io.StringIO()
@@ -115,7 +237,7 @@ sys.stderr = _buf
 `);
 
   let rawOutput = '';
-  let hasError  = false;
+  let hasError = false;
 
   try {
     await pyodide.loadPackagesFromImports(code);
@@ -139,7 +261,6 @@ function renderCellOutput(text, container, isError) {
   container.innerHTML = '';
   if (!text.trim()) return;
 
-  // Split on image markers embedded in stdout
   const parts = text.split(/(__IMG__[\s\S]*?__ENDIMG__)/);
   parts.forEach(part => {
     const imgMatch = part.match(/^__IMG__([\s\S]*?)__ENDIMG__$/);
@@ -157,33 +278,31 @@ function renderCellOutput(text, container, isError) {
   });
 }
 
-// ── Notebook renderer ──────────────────────────────────────────────────────
+// ── Notebook renderer ─────────────────────────────────────────────────────
 function autoResize(ta) {
   ta.style.height = 'auto';
   ta.style.height = ta.scrollHeight + 'px';
 }
 
 function renderNotebook(nb, title) {
-  notebookRender.innerHTML = '';
+  const container = document.getElementById('notebook-render');
+  container.innerHTML = '';
   document.getElementById('nb-title').textContent = title || 'Notebook';
 
-  const cells = nb.cells || [];
-
-  cells.forEach(cell => {
+  (nb.cells || []).forEach(cell => {
     const src = Array.isArray(cell.source) ? cell.source.join('') : (cell.source || '');
 
     if (cell.cell_type === 'markdown') {
       const div = document.createElement('div');
       div.className = 'nb-md-cell';
       div.innerHTML = marked.parse(src);
-      notebookRender.appendChild(div);
+      container.appendChild(div);
 
     } else if (cell.cell_type === 'code') {
-
       const wrapper = document.createElement('div');
       wrapper.className = 'nb-code-cell';
 
-      // ── Input ──
+      // Input area
       const inputArea = document.createElement('div');
       inputArea.className = 'nb-input-area';
 
@@ -197,7 +316,7 @@ function renderNotebook(nb, title) {
       textarea.spellcheck = false;
       textarea.addEventListener('input', () => autoResize(textarea));
       textarea.addEventListener('focus', () => wrapper.classList.add('selected'));
-      textarea.addEventListener('blur',  () => wrapper.classList.remove('selected'));
+      textarea.addEventListener('blur', () => wrapper.classList.remove('selected'));
       textarea.addEventListener('keydown', e => {
         if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); runBtn.click(); return; }
         if (e.key === 'Tab') {
@@ -217,7 +336,7 @@ function renderNotebook(nb, title) {
       inputArea.appendChild(textarea);
       inputArea.appendChild(runBtn);
 
-      // ── Output ──
+      // Output area
       const outputArea = document.createElement('div');
       outputArea.className = 'nb-output-area';
 
@@ -227,12 +346,13 @@ function renderNotebook(nb, title) {
       const outputContent = document.createElement('div');
       outputContent.className = 'nb-output-content';
 
-      // Show saved outputs from the notebook file
+      // Render saved outputs from the .ipynb
       (cell.outputs || []).forEach(out => {
         if (out.output_type === 'stream') {
           const text = Array.isArray(out.text) ? out.text.join('') : out.text;
           const pre = document.createElement('pre');
-          pre.className = 'nb-stdout'; pre.textContent = text;
+          pre.className = 'nb-stdout';
+          pre.textContent = text;
           outputContent.appendChild(pre);
         } else if (out.output_type === 'display_data' || out.output_type === 'execute_result') {
           const data = out.data || {};
@@ -244,7 +364,8 @@ function renderNotebook(nb, title) {
           } else if (data['text/plain']) {
             const text = Array.isArray(data['text/plain']) ? data['text/plain'].join('') : data['text/plain'];
             const pre = document.createElement('pre');
-            pre.className = 'nb-stdout'; pre.textContent = text;
+            pre.className = 'nb-stdout';
+            pre.textContent = text;
             outputContent.appendChild(pre);
           }
         }
@@ -254,9 +375,9 @@ function renderNotebook(nb, title) {
       outputArea.appendChild(outputContent);
       wrapper.appendChild(inputArea);
       wrapper.appendChild(outputArea);
-      notebookRender.appendChild(wrapper);
+      container.appendChild(wrapper);
 
-      // Wire up run button
+      // Wire run button
       runBtn.addEventListener('click', async () => {
         wrapper.classList.add('running');
         outPrompt.textContent = '';
@@ -264,106 +385,28 @@ function renderNotebook(nb, title) {
         wrapper.classList.remove('running');
       });
 
-      // Size textarea after render
       requestAnimationFrame(() => autoResize(textarea));
     }
   });
 
-  // Run all button
+  // Run all
   document.getElementById('run-all-btn').onclick = async () => {
-    for (const cell of notebookRender.querySelectorAll('.nb-code-cell')) {
-      const textarea = cell.querySelector('.nb-editor');
-      const runBtn   = cell.querySelector('.nb-run-btn');
-      if (textarea && runBtn) runBtn.click();
-      // Small gap between cells so UI can update
+    for (const cell of container.querySelectorAll('.nb-code-cell')) {
+      const runBtn = cell.querySelector('.nb-run-btn');
+      if (runBtn) runBtn.click();
       await new Promise(r => setTimeout(r, 50));
     }
   };
 
-  // Restart button — clears Pyodide state and re-inits
+  // Restart kernel
   document.getElementById('restart-btn').onclick = async () => {
-    pyodide = null; pyodideReady = false; pyodideBooting = false;
+    pyodide = null;
+    pyodideReady = false;
+    pyodideBooting = false;
     setKernelStatus('loading');
     runCounter = 0;
-    notebookRender.querySelectorAll('.nb-in-prompt').forEach(p => p.textContent = 'In [ ]:');
-    notebookRender.querySelectorAll('.nb-output-content').forEach(el => el.innerHTML = '');
+    container.querySelectorAll('.nb-in-prompt').forEach(p => p.textContent = 'In [ ]:');
+    container.querySelectorAll('.nb-output-content').forEach(el => el.innerHTML = '');
     await bootPyodide();
   };
 }
-
-// ── Network loading ────────────────────────────────────────────────────────
-async function loadNetwork(key) {
-  loadStatus.textContent = 'Loading…';
-  guessBtn.disabled = true;
-  currentWeights = null;
-  notesContent.textContent = 'Loading notes…';
-  notebookRender.innerHTML = '<p style="padding:1rem;color:#888">Loading notebook…</p>';
-
-  try {
-    const info = await (await fetch(NETWORKS[key])).json();
-
-    document.getElementById('info-arch').textContent    = info.architecture;
-    document.getElementById('info-tech').textContent    = info.techniques;
-    document.getElementById('info-results').textContent = info.results;
-
-    currentWeights = await (await fetch(info.weights)).json();
-
-    notesContent.innerHTML = info.notes
-      ? marked.parse(await (await fetch(info.notes)).text())
-      : 'No notes for this network yet.';
-
-    if (info.notebook) {
-      const nb = await (await fetch(info.notebook)).json();
-      renderNotebook(nb, info.name);
-    } else {
-      notebookRender.innerHTML = '<p style="padding:1rem;color:#888">No notebook attached.</p>';
-    }
-
-    loadStatus.textContent = 'Ready';
-    guessBtn.disabled = false;
-
-  } catch (err) {
-    loadStatus.textContent = 'Failed to load';
-    console.error(err);
-  }
-}
-
-netSelect.addEventListener('change', () => loadNetwork(netSelect.value));
-loadNetwork(netSelect.value);
-
-// ── Network forward pass ───────────────────────────────────────────────────
-function dotVecMat(vec, mat) {
-  const n = vec.length, m = mat[0].length;
-  const out = new Float64Array(m);
-  for (let j = 0; j < m; j++) { let s = 0; for (let i = 0; i < n; i++) s += vec[i] * mat[i][j]; out[j] = s; }
-  return out;
-}
-const tanh    = v => Array.from(v).map(x => Math.tanh(x));
-const softmax = v => { const a = Array.from(v), mx = Math.max(...a), e = a.map(x => Math.exp(x-mx)), s = e.reduce((a,b)=>a+b,0); return e.map(x=>x/s); };
-
-function predict(pixels) {
-  return softmax(dotVecMat(tanh(dotVecMat(pixels, currentWeights.weights_0_1)), currentWeights.weights_1_2));
-}
-
-function getPixels() {
-  const s = document.createElement('canvas'); s.width = s.height = 28;
-  s.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
-  const d = s.getContext('2d').getImageData(0,0,28,28).data;
-  const p = new Float32Array(784);
-  for (let i = 0; i < 784; i++) p[i] = d[i*4] / 255;
-  return p;
-}
-
-guessBtn.addEventListener('click', () => {
-  if (!currentWeights) return;
-  const probs = predict(getPixels());
-  const pred  = probs.indexOf(Math.max(...probs));
-  predDisplay.innerHTML = `<div class="prediction-number">${pred}</div><div class="prediction-conf">${(probs[pred]*100).toFixed(1)}% confidence</div>`;
-  barChart.innerHTML = '';
-  const top = Math.max(...probs);
-  probs.forEach((p, d) => {
-    const row = document.createElement('div'); row.className = 'bar-row';
-    row.innerHTML = `<span class="bar-digit">${d}</span><div class="bar-track"><div class="bar-fill ${d===pred?'top':''}" style="width:${(p/top*100).toFixed(1)}%"></div></div><span class="bar-pct">${(p*100).toFixed(1)}%</span>`;
-    barChart.appendChild(row);
-  });
-});

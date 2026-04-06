@@ -3,96 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MNIST Digit Classifier</title>
+  <title>Deep Learning Networks</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 </head>
 <body>
 
-  <header>
-    <h1>MNIST Digit Classifier</h1>
-    <p class="subtitle">Draw a digit and let the network guess it</p>
-  </header>
+  <div class="page-header">
+    <h1>Deep Learning Networks</h1>
+    <p class="subtitle">Neural networks built from scratch — explore the notebooks and test each one live</p>
+  </div>
 
-  <main>
-
-    <!-- Network selector -->
-    <div class="network-bar">
-      <label for="network-select">Network:</label>
-      <select id="network-select">
-        <option value="grokking-mnist">Grokking-MNIST</option>
-      </select>
-      <span id="load-status" class="load-status"></span>
+  <div class="page-body">
+    <div class="network-grid" id="network-grid">
+      <p style="color:#999">Loading networks…</p>
     </div>
+  </div>
 
-    <!-- Draw + info -->
-    <div class="content">
-      <div class="left-panel">
-        <div class="canvas-wrapper">
-          <canvas id="draw-canvas" width="280" height="280"></canvas>
-        </div>
-        <div class="canvas-buttons">
-          <button id="clear-btn">Clear</button>
-          <button id="guess-btn" disabled>Guess</button>
-        </div>
-        <p class="hint">Draw a single digit in the centre of the box</p>
-      </div>
+  <script>
+    async function loadRegistry() {
+      const grid = document.getElementById('network-grid');
+      try {
+        const registry = await (await fetch('networks/registry.json')).json();
+        const infos = await Promise.all(
+          registry.map(async entry => {
+            const info = await (await fetch(entry.path)).json();
+            info._id = entry.id;
+            return info;
+          })
+        );
 
-      <div class="right-panel">
-        <div class="card" id="network-info">
-          <h2>Network Info</h2>
-          <div class="info-row"><span class="info-label">Architecture</span><span id="info-arch">—</span></div>
-          <div class="info-row"><span class="info-label">Techniques</span><span id="info-tech">—</span></div>
-          <div class="info-row"><span class="info-label">Results</span><span id="info-results">—</span></div>
-        </div>
+        grid.innerHTML = '';
+        infos.forEach(info => {
+          const card = document.createElement('a');
+          card.className = 'network-card';
+          card.href = `network.html?id=${info._id}`;
 
-        <div class="card" id="result-card">
-          <h2>Prediction</h2>
-          <div id="prediction-display">
-            <span class="prediction-label">Draw something and press Guess</span>
-          </div>
-          <div id="bar-chart"></div>
-        </div>
-      </div>
-    </div>
+          const techniques = Array.isArray(info.techniques)
+            ? info.techniques.join(' · ')
+            : info.techniques;
 
-    <!-- Notes -->
-    <div class="full-width-section">
-      <div class="card">
-        <h2>Notes</h2>
-        <div id="notes-content" class="markdown-body">Loading notes…</div>
-      </div>
-    </div>
+          card.innerHTML = `
+            <h2>${info.name}</h2>
+            <div class="arch">${info.architecture}</div>
+            <div class="desc">${info.description || ''}</div>
+            <span class="accuracy">${info.results.test_accuracy || info.results.summary}</span>
+            <div class="techniques">${techniques}</div>
+          `;
+          grid.appendChild(card);
+        });
 
-    <!-- Notebook -->
-    <div class="full-width-section">
-      <div class="nb-container">
+        if (infos.length === 0) {
+          grid.innerHTML = '<p style="color:#999">No networks found.</p>';
+        }
+      } catch (err) {
+        grid.innerHTML = '<p style="color:#c00">Failed to load networks.</p>';
+        console.error(err);
+      }
+    }
+    loadRegistry();
+  </script>
 
-        <div class="nb-top-bar">
-          <span class="nb-title" id="nb-title">Notebook</span>
-          <div class="nb-top-bar-right">
-            <span class="nb-kernel-indicator">
-              <span class="nb-kernel-dot" id="kernel-dot"></span>
-              <span id="kernel-label">Python (not started)</span>
-            </span>
-            <button class="nb-toolbar-btn" id="run-all-btn" title="Run all cells">&#9654;&#9654; Run All</button>
-            <button class="nb-toolbar-btn" id="restart-btn" title="Restart kernel">&#8635; Restart</button>
-          </div>
-        </div>
-
-        <div class="nb-notice">
-          Cells are editable and runnable in the browser via Pyodide (Python/NumPy/Matplotlib).
-          Cells that require <code>keras</code> or the MNIST dataset will not run — everything else will.
-          The original notebook file is never modified.
-        </div>
-
-        <div id="notebook-render"></div>
-      </div>
-    </div>
-
-  </main>
-
-  <script src="script.js"></script>
 </body>
 </html>
