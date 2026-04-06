@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MNIST Digit Classifier</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <h1>MNIST Digit Classifier</h1>
+    <p class="subtitle">Draw a digit and let the network guess it</p>
+  </header>
+
+  <main>
+
+    <!-- Network selector -->
+    <div class="network-bar">
+      <label for="network-select">Network:</label>
+      <select id="network-select">
+        <option value="grokking-mnist">Grokking-MNIST</option>
+      </select>
+      <span id="load-status" class="load-status"></span>
+    </div>
+
+    <div class="content">
+
+      <!-- Left: canvas -->
+      <div class="left-panel">
+        <div class="canvas-wrapper">
+          <canvas id="draw-canvas" width="280" height="280"></canvas>
+        </div>
+        <div class="canvas-buttons">
+          <button id="clear-btn">Clear</button>
+          <button id="guess-btn" disabled>Guess</button>
+        </div>
+        <p class="hint">Draw a single digit in the centre of the box</p>
+      </div>
+
+      <!-- Right: info + result -->
+      <div class="right-panel">
+
+        <!-- Network info -->
+        <div class="card" id="network-info">
+          <h2>Network Info</h2>
+          <div class="info-row"><span class="info-label">Architecture</span><span id="info-arch">—</span></div>
+          <div class="info-row"><span class="info-label">Techniques</span><span id="info-tech">—</span></div>
+          <div class="info-row"><span class="info-label">Results</span><span id="info-results">—</span></div>
+        </div>
+
+        <!-- Prediction result -->
+        <div class="card" id="result-card">
+          <h2>Prediction</h2>
+          <div id="prediction-display">
+            <span class="prediction-label">Draw something and press Guess</span>
+          </div>
+          <div id="bar-chart"></div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

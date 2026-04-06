@@ -74,9 +74,7 @@ from keras.datasets import imdb as keras_imdb
 
 # Keras IMDB: load top-5000 words, reviews are already integer sequences
 TOP_WORDS = 5000
-(x_train_raw, y_train), (x_test_raw, y_test) = keras_imdb.load_data(
-    num_words=TOP_WORDS
-)
+(x_train_raw, y_train), (x_test_raw, y_test) = keras_imdb.load_data(num_words=TOP_WORDS)
 
 # Keras prepends a 1 (START token) to every review — strip it
 x_train_raw = [r[1:] for r in x_train_raw]
@@ -126,7 +124,7 @@ for it in range(iterations):
         weights_0_1[x] -= layer_1_delta * alpha
         weights_1_2    -= np.outer(layer_1, layer_2_delta) * alpha
 
-        correct += int(abs(layer_2_delta) < 0.5)
+        correct += int(abs(layer_2_delta[0]) < 0.5)
         total   += 1
 
         if i % 2000 == 1999:
@@ -140,7 +138,7 @@ for it in range(iterations):
             continue
         layer_1 = sigmoid(np.sum(weights_0_1[x], axis=0))
         layer_2 = sigmoid(np.dot(layer_1, weights_1_2))
-        test_correct += int(abs(layer_2 - y) < 0.5)
+        test_correct += int(abs(layer_2[0] - y) < 0.5)
         test_total   += 1
     print(f"  Iter {it+1} | Test Acc: {test_correct/test_total:.3f}")
 
