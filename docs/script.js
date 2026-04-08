@@ -25,12 +25,21 @@
   // Two backends:
   //   - 'mnist'      → hand-rolled forward pass over JSON weight matrices (Network 1)
   //   - 'mnist-cnn'  → TensorFlow.js LayersModel loaded from tfjs_model/model.json
-  if (info.input_type === 'mnist') {
-    const weights = await (await fetch(info.weights)).json();
-    initTryIt(info, { kind: 'dense', weights });
-  } else if (info.input_type === 'mnist-cnn') {
-    const tfjsModel = await tf.loadLayersModel(info.tfjs_model);
-    initTryIt(info, { kind: 'cnn', model: tfjsModel });
+  // Wrapped in try/catch so a broken try-it widget doesn't prevent notes and the
+  // notebook below from rendering.
+  try {
+    if (info.input_type === 'mnist') {
+      const weights = await (await fetch(info.weights)).json();
+      initTryIt(info, { kind: 'dense', weights });
+    } else if (info.input_type === 'mnist-cnn') {
+      if (typeof tf === 'undefined') {
+        throw new Error('TensorFlow.js not loaded — check the CDN script tag');
+      }
+      const tfjsModel = await tf.loadLayersModel(info.tfjs_model);
+      initTryIt(info, { kind: 'cnn', model: tfjsModel });
+    }
+  } catch (e) {
+    console.error('Failed to set up try-it widget:', e);
   }
 
   // Load notes
