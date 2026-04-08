@@ -1,0 +1,22 @@
+{
+  "name": "2. Deep Learning With Keras (O'Reilly) - MNIST CNN",
+  "description": "A small convolutional neural network built with TensorFlow/Keras while following along with the O'Reilly Deep Learning book.",
+  "architecture": "28×28×1 → Conv(64,3×3) → MaxPool → Conv(64,3×3) → MaxPool → Flatten → Dense(128, tanh) → Dropout → Dense(128, tanh) → Dropout → Dense(10, softmax)",
+  "techniques": [
+    "Convolutional + max-pooling layers",
+    "ReLU + tanh + softmax activations",
+    "Dropout regularisation",
+    "Sparse categorical cross-entropy loss",
+    "Adam optimiser",
+    "Validation split + EarlyStopping"
+  ],
+  "results": {
+    "test_accuracy": "99.1%",
+    "summary": "~99.1% test accuracy on 10,000 unseen images. Training was halted automatically by EarlyStopping (patience=5, monitoring val_loss) after ~12 epochs. Train/test gap of ~0.5%, showing the dropout + validation-split + early-stopping setup is keeping overfitting in check."
+  },
+  "tfjs_model": "networks/2-oreilly-deep-learning-mnist/tfjs_model/model.json",
+  "notebook": "networks/2-oreilly-deep-learning-mnist/notebook.ipynb",
+  "notes": "networks/2-oreilly-deep-learning-mnist/notes.md",
+  "input_size": 784,
+  "input_type": "mnist-cnn"
+}

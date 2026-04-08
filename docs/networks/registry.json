@@ -2,5 +2,9 @@
   {
     "id": "1-grokking-deep-learning-mnist",
     "path": "networks/1-grokking-deep-learning-mnist/info.json"
+  },
+  {
+    "id": "2-oreilly-deep-learning-mnist",
+    "path": "networks/2-oreilly-deep-learning-mnist/info.json"
   }
 ]

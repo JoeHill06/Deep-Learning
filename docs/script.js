@@ -21,10 +21,16 @@
   document.getElementById('net-arch').textContent = info.architecture;
   document.getElementById('net-results').textContent = info.results.summary || '';
 
-  // Load weights + set up try-it widget (only for mnist-type inputs for now)
+  // Load weights + set up try-it widget.
+  // Two backends:
+  //   - 'mnist'      → hand-rolled forward pass over JSON weight matrices (Network 1)
+  //   - 'mnist-cnn'  → TensorFlow.js LayersModel loaded from tfjs_model/model.json
   if (info.input_type === 'mnist') {
     const weights = await (await fetch(info.weights)).json();
-    initTryIt(info, weights);
+    initTryIt(info, { kind: 'dense', weights });
+  } else if (info.input_type === 'mnist-cnn') {
+    const tfjsModel = await tf.loadLayersModel(info.tfjs_model);
+    initTryIt(info, { kind: 'cnn', model: tfjsModel });
   }
 
   // Load notes
@@ -49,7 +55,10 @@
 })();
 
 // ── Try-it: Canvas + Prediction ───────────────────────────────────────────
-function initTryIt(info, weights) {
+// `backend` is one of:
+//   { kind: 'dense', weights }  — hand-rolled MLP forward pass
+//   { kind: 'cnn',   model   }  — TensorFlow.js LayersModel
+function initTryIt(info, backend) {
   const section = document.getElementById('try-it-section');
   section.style.display = '';
 
@@ -97,7 +106,18 @@ function initTryIt(info, weights) {
   guessBtn.disabled = false;
   guessBtn.addEventListener('click', () => {
     const pixels = getPixels(canvas);
-    const probs = forwardPass(pixels, weights, info.layers);
+    let probs;
+    if (backend.kind === 'dense') {
+      probs = forwardPass(pixels, backend.weights, info.layers);
+    } else {
+      // CNN: reshape the flat 784-length Float32Array into a (1,28,28,1) tensor,
+      // run model.predict, pull the result back into a plain JS array.
+      const input = tf.tensor4d(pixels, [1, 28, 28, 1]);
+      const out = backend.model.predict(input);
+      probs = Array.from(out.dataSync());
+      input.dispose();
+      out.dispose();
+    }
     const pred = probs.indexOf(Math.max(...probs));
 
     predDisplay.innerHTML =
