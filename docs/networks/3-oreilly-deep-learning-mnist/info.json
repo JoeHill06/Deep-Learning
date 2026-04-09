@@ -18,6 +18,7 @@
   "tfjs_model": "networks/3-oreilly-deep-learning-mnist/tfjs_model/model.json",
   "notebook": "networks/3-oreilly-deep-learning-mnist/notebook.ipynb",
   "notes": "networks/3-oreilly-deep-learning-mnist/notes.md",
-  "input_size": 784,
+  "input_size": 3136,
+  "input_shape": [56, 56],
   "input_type": "mnist-cnn"
 }

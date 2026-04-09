@@ -114,14 +114,13 @@ function initTryIt(info, backend) {
 
   guessBtn.disabled = false;
   guessBtn.addEventListener('click', () => {
-    const pixels = getPixels(canvas);
+    const size = (info.input_shape && info.input_shape[0]) || 28;
+    const pixels = getPixels(canvas, size);
     let probs;
     if (backend.kind === 'dense') {
       probs = forwardPass(pixels, backend.weights, info.layers);
     } else {
-      // CNN: reshape the flat 784-length Float32Array into a (1,28,28,1) tensor,
-      // run model.predict, pull the result back into a plain JS array.
-      const input = tf.tensor4d(pixels, [1, 28, 28, 1]);
+      const input = tf.tensor4d(pixels, [1, size, size, 1]);
       const out = backend.model.predict(input);
       probs = Array.from(out.dataSync());
       input.dispose();
@@ -189,14 +188,16 @@ function forwardPass(input, weights, layers) {
   return current;
 }
 
-// ── Get 28x28 pixels from canvas ──────────────────────────────────────────
-function getPixels(canvas) {
+// ── Get pixels from canvas at the network's expected resolution ───────────
+function getPixels(canvas, size) {
+  const n = size || 28;
   const s = document.createElement('canvas');
-  s.width = s.height = 28;
-  s.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
-  const d = s.getContext('2d').getImageData(0, 0, 28, 28).data;
-  const p = new Float32Array(784);
-  for (let i = 0; i < 784; i++) p[i] = d[i * 4] / 255;
+  s.width = s.height = n;
+  s.getContext('2d').drawImage(canvas, 0, 0, n, n);
+  const d = s.getContext('2d').getImageData(0, 0, n, n).data;
+  const total = n * n;
+  const p = new Float32Array(total);
+  for (let i = 0; i < total; i++) p[i] = d[i * 4] / 255;
   return p;
 }
 
