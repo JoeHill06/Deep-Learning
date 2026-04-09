@@ -1,0 +1,23 @@
+{
+  "name": "3. Deep Learning With TensorFlow Keras (O'Reilly) - MNIST CNN + Data Augmentation",
+  "description": "A convolutional neural network with data augmentation built with TensorFlow/Keras, extending Network 2 with random rotation, translation, and zoom to improve generalisation.",
+  "architecture": "28×28×1 → RandomRotation → RandomTranslation → RandomZoom → Conv(64,3×3) → MaxPool → Conv(64,3×3) → MaxPool → Flatten → Dense(128, relu) → Dropout(0.15) → Dense(128, relu) → Dropout(0.15) → Dense(10, softmax)",
+  "techniques": [
+    "Data augmentation (random rotation, translation, zoom)",
+    "Convolutional + max-pooling layers",
+    "ReLU + softmax activations",
+    "Dropout regularisation (0.15)",
+    "Sparse categorical cross-entropy loss",
+    "Adam optimiser",
+    "Validation split + EarlyStopping (patience=10)"
+  ],
+  "results": {
+    "test_accuracy": "99.2%",
+    "summary": "~99.2% test accuracy on 10,000 unseen images with a train/test gap of ~0.0%. Data augmentation and reduced dropout (0.15 vs 0.3) improved generalisation over Network 2. Training was halted by EarlyStopping after ~15 epochs."
+  },
+  "tfjs_model": "networks/3-oreilly-deep-learning-mnist/tfjs_model/model.json",
+  "notebook": "networks/3-oreilly-deep-learning-mnist/notebook.ipynb",
+  "notes": "networks/3-oreilly-deep-learning-mnist/notes.md",
+  "input_size": 784,
+  "input_type": "mnist-cnn"
+}

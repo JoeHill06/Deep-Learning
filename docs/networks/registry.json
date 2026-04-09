@@ -6,5 +6,9 @@
   {
     "id": "2-oreilly-deep-learning-mnist",
     "path": "networks/2-oreilly-deep-learning-mnist/info.json"
+  },
+  {
+    "id": "3-oreilly-deep-learning-mnist",
+    "path": "networks/3-oreilly-deep-learning-mnist/info.json"
   }
 ]
