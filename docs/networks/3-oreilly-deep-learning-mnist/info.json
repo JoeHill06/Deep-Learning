@@ -1,8 +1,9 @@
 {
   "name": "3. Deep Learning With TensorFlow Keras (O'Reilly) - MNIST CNN",
-  "description": "A convolutional neural network with data augmentation built with TensorFlow/Keras, extending Network 2 with random rotation, translation, and zoom to improve generalisation.",
-  "architecture": "28×28×1 → Augmentation → Conv(64,3×3) → MaxPool → Conv(64,3×3) → MaxPool → Flatten → Dense(128, relu) → Dropout(0.15) → Dense(128, relu) → Dropout(0.15) → Dense(10, softmax)",
+  "description": "A convolutional neural network with data augmentation built with TensorFlow/Keras, extending Network 2 with 56x56 upscaled images, random rotation, translation, and zoom to improve generalisation.",
+  "architecture": "56×56×1 → Augmentation → Conv(64,3×3) → MaxPool → Conv(64,3×3) → MaxPool → Flatten → Dense(128, relu) → Dropout(0.15) → Dense(128, relu) → Dropout(0.15) → Dense(10, softmax)",
   "techniques": [
+    "Image upscaling (28×28 → 56×56)",
     "Data augmentation (random rotation, translation, zoom)",
     "Convolutional + max-pooling layers",
     "ReLU + softmax activations",
@@ -12,8 +13,8 @@
     "Validation split + EarlyStopping (patience=10)"
   ],
   "results": {
-    "test_accuracy": "97.9%",
-    "summary": "~97.9% test accuracy on 10,000 unseen images with a train/test gap of ~-1.1%. Data augmentation and reduced dropout (0.15 vs 0.3) improved generalisation over Network 2. Training was halted by EarlyStopping."
+    "test_accuracy": "98.7%",
+    "summary": "~98.7% test accuracy on 10,000 unseen images with a train/test gap of ~-1.0%. Aggressive data augmentation on 56×56 upscaled images forces the model to learn position/scale-invariant features. Training was halted by EarlyStopping."
   },
   "tfjs_model": "networks/3-oreilly-deep-learning-mnist/tfjs_model/model.json",
   "notebook": "networks/3-oreilly-deep-learning-mnist/notebook.ipynb",
