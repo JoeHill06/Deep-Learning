@@ -190,53 +190,11 @@ function forwardPass(input, weights, layers) {
 }
 
 // ── Get 28x28 pixels from canvas ──────────────────────────────────────────
-// Mimics MNIST preprocessing: find the drawn digit's bounding box, centre it
-// in a 20×20 area within the 28×28 output (4 px padding on each side), just
-// like the original MNIST dataset.
 function getPixels(canvas) {
-  const src = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
-  const w = canvas.width, h = canvas.height;
-
-  // Find bounding box of non-black pixels
-  let minX = w, minY = h, maxX = 0, maxY = 0;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (src.data[(y * w + x) * 4] > 10) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-
-  // Nothing drawn — return blank
-  if (maxX <= minX || maxY <= minY) return new Float32Array(784);
-
-  // Crop to bounding box
-  const bw = maxX - minX + 1;
-  const bh = maxY - minY + 1;
-  const crop = document.createElement('canvas');
-  crop.width = bw; crop.height = bh;
-  crop.getContext('2d').drawImage(canvas, minX, minY, bw, bh, 0, 0, bw, bh);
-
-  // Scale into a 20×20 box (preserving aspect ratio), centred in 28×28
-  const scale = 20 / Math.max(bw, bh);
-  const sw = Math.round(bw * scale);
-  const sh = Math.round(bh * scale);
-  const ox = Math.round((28 - sw) / 2);
-  const oy = Math.round((28 - sh) / 2);
-
-  const out = document.createElement('canvas');
-  out.width = out.height = 28;
-  const octx = out.getContext('2d');
-  octx.fillStyle = '#000';
-  octx.fillRect(0, 0, 28, 28);
-  octx.imageSmoothingEnabled = true;
-  octx.imageSmoothingQuality = 'high';
-  octx.drawImage(crop, 0, 0, bw, bh, ox, oy, sw, sh);
-
-  const d = octx.getImageData(0, 0, 28, 28).data;
+  const s = document.createElement('canvas');
+  s.width = s.height = 28;
+  s.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
+  const d = s.getContext('2d').getImageData(0, 0, 28, 28).data;
   const p = new Float32Array(784);
   for (let i = 0; i < 784; i++) p[i] = d[i * 4] / 255;
   return p;
